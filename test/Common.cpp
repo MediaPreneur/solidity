@@ -22,12 +22,16 @@
 #include <test/EVMHost.h>
 
 #include <libsolutil/Assertions.h>
+#include <libsolutil/StringUtils.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
+#include <range/v3/all.hpp>
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
+
+using namespace std;
 
 namespace solidity::test
 {
@@ -207,6 +211,45 @@ bool CommonOptions::parse(int argc, char const* const* argv)
 	return true;
 }
 
+string CommonOptions::toString(vector<string> const& _selectedOptions) const
+{
+	if (!m_singleton || _selectedOptions.empty())
+		return "";
+
+	auto boolToString = [](bool value) -> string
+		{
+			return value ? "true" : "false";
+		};
+	// Using std::map to avoid if-else/switch-case block
+	map<string, string> optionValueMap = {
+		{"evmVersion", "evmVersion=" + evmVersion().name()},
+		{"optimize", "optimize=" + boolToString(optimize)},
+		{"useABIEncoderV1", "useABIEncoderV1=" + boolToString(useABIEncoderV1)},
+		{"batch", "batch=" + std::to_string(selectedBatch + 1) + "/" + std::to_string(batches)},
+		{"ewasm", "ewasm=" + boolToString(ewasm)},
+		{"enforceCompileToEwasm", "enforceCompileToEwasm=" + boolToString(enforceCompileToEwasm)},
+		{"enforceGasTest", "enforceGasTest=" + boolToString(enforceGasTest)},
+		{"enforceGasTestMinValue", "enforceGasTestMinValue=" + enforceGasTestMinValue.str()},
+		{"disableSemanticTests", "disableSemanticTests=" + boolToString(disableSemanticTests)},
+		{"disableSMT", "disableSMT=" + boolToString(disableSMT)},
+		{"showMessages", "showMessages=" + boolToString(showMessages)},
+		{"showMetadata", "showMetadata=" + boolToString(showMetadata)}
+	};
+
+	using namespace ranges;
+	vector<string> options = _selectedOptions |
+		views::transform([&optionValueMap](auto& optionName) { return optionValueMap.find(optionName); }) |
+		views::filter([&optionValueMap](auto it) { return it != optionValueMap.end(); }) |
+		views::transform([](auto it) { return it->second; }) |
+		to<vector>();
+
+	return solidity::util::joinHumanReadable(options);
+}
+
+void CommonOptions::printSelectedOptions(std::ostream& _stream, std::string const& _linePrefix, std::vector<std::string> const& _selectedOptions) const
+{
+	_stream << _linePrefix << "Run Settings: " << toString(_selectedOptions) << std::endl;
+}
 
 langutil::EVMVersion CommonOptions::evmVersion() const
 {
