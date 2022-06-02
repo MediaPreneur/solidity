@@ -29,9 +29,11 @@ def pylint_all_filenames(dev_mode, rootdirs):
     filenames = []
     for rootdir in rootdirs:
         for rootpath, _, filenames_w in walk(rootdir):
-            for filename in filenames_w:
-                if filename.endswith('.py'):
-                    filenames.append(path.join(rootpath, filename))
+            filenames.extend(
+                path.join(rootpath, filename)
+                for filename in filenames_w
+                if filename.endswith('.py')
+            )
 
     if not dev_mode:
         # NOTE: We could just give pylint the directories and it would find the files on its
@@ -86,12 +88,10 @@ def main():
         f"{PROJECT_ROOT}/scripts",
         f"{PROJECT_ROOT}/test",
     ]
-    success = pylint_all_filenames(options.dev_mode, rootdirs)
-
-    if not success:
-        sys.exit(1)
-    else:
+    if success := pylint_all_filenames(options.dev_mode, rootdirs):
         print("No problems found.")
+    else:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

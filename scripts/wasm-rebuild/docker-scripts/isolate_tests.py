@@ -20,18 +20,16 @@ def extract_test_cases(path):
     tests = []
 
     for l in lines:
-      if inside:
-        if l.strip().endswith(')' + delimiter + '";'):
-          tests[-1] += l.strip()[:-(3 + len(delimiter))]
-          inside = False
-        else:
-          tests[-1] += l + '\n'
-      else:
-        m = re.search(r'R"([^(]*)\((.*)$', l.strip())
-        if m:
-          inside = True
-          delimiter = m.group(1)
-          tests += [m.group(2)]
+        if inside:
+            if l.strip().endswith(f'){delimiter}' + '";'):
+                tests[-1] += l.strip()[:-(3 + len(delimiter))]
+                inside = False
+            else:
+                tests[-1] += l + '\n'
+        elif m := re.search(r'R"([^(]*)\((.*)$', l.strip()):
+            inside = True
+            delimiter = m[1]
+            tests += [m[2]]
 
     return tests
 

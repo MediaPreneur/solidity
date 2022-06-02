@@ -97,8 +97,13 @@ class Statistics:
         self.file_count += 1
         self.contract_count += len(contract_reports)
         self.error_count += (1 if report.contract_reports is None else 0)
-        self.missing_bytecode_count += sum(1 for c in contract_reports if c.bytecode is None)
-        self.missing_metadata_count += sum(1 for c in contract_reports if c.metadata is None)
+        self.missing_bytecode_count += sum(
+            c.bytecode is None for c in contract_reports
+        )
+
+        self.missing_metadata_count += sum(
+            c.metadata is None for c in contract_reports
+        )
 
     def __str__(self) -> str:
         contract_count = str(self.contract_count) + ('+' if self.error_count > 0 else '')
@@ -361,13 +366,6 @@ def generate_report(
                                 f"'{source_file_name}' with optimize={optimize}\n\n"
                                 f"COMPILER STDOUT:\n{exception.stdout}\n"
                                 f"COMPILER STDERR:\n{exception.stderr}\n",
-                                file=sys.stderr
-                            )
-                            raise
-                        except:
-                            print(
-                                f"\n\nInterrupted by an exception while processing file "
-                                f"'{source_file_name}' with optimize={optimize}\n",
                                 file=sys.stderr
                             )
                             raise

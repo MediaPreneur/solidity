@@ -14,7 +14,7 @@ x = BitVec('X', n_bits)
 def SIGNEXTEND_native(i, x):
     return SignExt(256 - 8 * i - 8, Extract(8 * i + 7, 0, x))
 
-for i in range(0, 32):
+for i in range(32):
     rule.check(
         SIGNEXTEND(BitVecVal(i, n_bits), x),
         SIGNEXTEND_native(i, x)

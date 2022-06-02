@@ -108,15 +108,14 @@ class regressor:
             corpus_dir = f"/tmp/solidity-fuzzing-corpus/{basename}_seed_corpus"
             cmd = f"find {corpus_dir} -type f | xargs -n1 sh -c '{fuzzer} $0 || exit 255'"
             self.run_cmd(cmd, logfile=logfile)
-            ret = self.process_log(logfile)
-            if not ret:
+            if ret := self.process_log(logfile):
+                print(f"\t[+] {basename} passed regression tests.")
+                testStatus.append(True)
+            else:
                 print(
                     f"\t[-] libFuzzer reported failure for {basename}. "
                     "Failure logged to test_results")
                 testStatus.append(False)
-            else:
-                print(f"\t[+] {basename} passed regression tests.")
-                testStatus.append(True)
         return all(testStatus)
 
 

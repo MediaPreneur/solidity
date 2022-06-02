@@ -15,17 +15,14 @@ def comp(version_string):
     return [int(c) for c in version_string.split('.')]
 
 path = os.path.dirname(os.path.realpath(__file__))
-with open(path + '/../docs/bugs.json', encoding='utf8') as bugsFile:
+with open(f'{path}/../docs/bugs.json', encoding='utf8') as bugsFile:
     bugs = json.load(bugsFile)
 
 versions = {}
-with open(path + '/../Changelog.md', encoding='utf8') as changelog:
+with open(f'{path}/../Changelog.md', encoding='utf8') as changelog:
     for line in changelog:
-        m = re.search(r'^### (\S+) \((\d+-\d+-\d+)\)$', line)
-        if m:
-            versions[m.group(1)] = {}
-            versions[m.group(1)]['released'] = m.group(2)
-
+        if m := re.search(r'^### (\S+) \((\d+-\d+-\d+)\)$', line):
+            versions[m[1]] = {'released': m[2]}
 for key, value in versions.items():
     value['bugs'] = []
     for bug in bugs:
@@ -36,8 +33,8 @@ for key, value in versions.items():
         value['bugs'] += [bug['name']]
 
 new_contents = json.dumps(versions, sort_keys=True, indent=4, separators=(',', ': '))
-with open(path + '/../docs/bugs_by_version.json', 'r', encoding='utf8') as bugs_by_version:
+with open(f'{path}/../docs/bugs_by_version.json', 'r', encoding='utf8') as bugs_by_version:
     old_contents = bugs_by_version.read()
-with open(path + '/../docs/bugs_by_version.json', 'w', encoding='utf8') as bugs_by_version:
+with open(f'{path}/../docs/bugs_by_version.json', 'w', encoding='utf8') as bugs_by_version:
     bugs_by_version.write(new_contents)
 sys.exit(old_contents != new_contents)

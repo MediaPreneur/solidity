@@ -116,15 +116,14 @@ class CircleCI:
             {'branch': branch} if branch is not None else {},
             max_pages=10,
         ):
-            matching_items = [
+            if matching_items := [
                 item
                 for item in items
                 if (
-                    (commit_hash is None or item['vcs']['revision'] == commit_hash) and
-                    item['trigger']['type'] not in excluded_trigger_types
+                    (commit_hash is None or item['vcs']['revision'] == commit_hash)
+                    and item['trigger']['type'] not in excluded_trigger_types
                 )
-            ]
-            if len(matching_items) > 0:
+            ]:
                 return matching_items
 
         return []

@@ -44,7 +44,7 @@ def find_ids_in_source_file(file_name, id_to_file_names):
         if in_comment(source, m.start()):
             continue
         underscore_pos = m.group(0).index("_")
-        error_id = m.group(0)[0:underscore_pos]
+        error_id = m.group(0)[:underscore_pos]
         if error_id in id_to_file_names:
             id_to_file_names[error_id].append(file_name)
         else:
@@ -76,7 +76,7 @@ def fix_ids_in_source_file(file_name, id_to_count, available_ids):
         destination.extend(source[k:m.start()])
 
         underscore_pos = m.group(0).index("_")
-        error_id = m.group(0)[0:underscore_pos]
+        error_id = m.group(0)[:underscore_pos]
 
         # incorrect id or id has a duplicate somewhere
         if not in_comment(source, m.start()) and (len(error_id) != 4 or error_id[0] == "0" or id_to_count[error_id] > 1):
@@ -87,7 +87,7 @@ def fix_ids_in_source_file(file_name, id_to_count, available_ids):
         else:
             new_id = error_id
 
-        destination.extend(new_id + "_error")
+        destination.extend(f"{new_id}_error")
         k = m.end()
 
     destination.extend(source[k:])
