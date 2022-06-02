@@ -13,21 +13,22 @@ def parse_call(call):
     function = ''
     arguments = ""
     results = ""
-    search = re.search(r'// (.*):(.*)\s->\s(.*)', call, re.MULTILINE | re.DOTALL)
-    if search:
-        function = search.group(1)
-        arguments = search.group(2)
-        results = search.group(3)
+    if search := re.search(
+        r'// (.*):(.*)\s->\s(.*)', call, re.MULTILINE | re.DOTALL
+    ):
+        function = search[1]
+        arguments = search[2]
+        results = search[3]
         if results.find("#") != -1:
             results = results[:results.find("#")]
-    else:
-        search = re.search(r'// (.*)(.*)\s->\s(.*)', call, re.MULTILINE | re.DOTALL)
-        if search:
-            function = search.group(1)
-            arguments = search.group(2)
-            results = search.group(3)
-            if results.find("#") != -1:
-                results = results[:results.find("#")]
+    elif search := re.search(
+        r'// (.*)(.*)\s->\s(.*)', call, re.MULTILINE | re.DOTALL
+    ):
+        function = search[1]
+        arguments = search[2]
+        results = search[3]
+        if results.find("#") != -1:
+            results = results[:results.find("#")]
     if function.find("wei") >= 0:
         function = function[:function.find(",")]
     return function.strip(), arguments.strip(), results.strip()
@@ -40,16 +41,16 @@ def colorize(left, right, index):
     colors = [red, yellow]
     color = colors[index % len(colors)]
     function, _arguments, _results = parse_call(right)
-    left = left.replace("compileAndRun", color + "compileAndRun" + reset)
-    right = right.replace("constructor", color + "constructor" + reset)
+    left = left.replace("compileAndRun", f"{color}compileAndRun{reset}")
+    right = right.replace("constructor", f"{color}constructor{reset}")
     if function:
         left = left.replace(function, color + function + reset)
         right = right.replace(function, color + function + reset)
     if left.find(function):
         bottom = " " * (left.find(function) - 4) + right
     else:
-        bottom = " " + right
-    return "    " + left + "\n" + bottom  # " {:<90} {:<90}\n{}".format(left, right, bottom)
+        bottom = f" {right}"
+    return f"    {left}" + "\n" + bottom
 
 
 def get_checks(content, sol_file_path):
@@ -85,16 +86,16 @@ def show_test(name, content, sol_file_path, current_test, test_count):
         cpp_file.close()
 
         os.system("clear")
-        print(str(current_test) + " / " + str(test_count) + " - " + name + "\n")
+        print(f"{str(current_test)} / {str(test_count)} - {name}" + "\n")
         diff_env = os.getenv('DIFF', "/usr/local/bin/colordiff -a -d -w -y -W 200 ")
-        os.system(diff_env + " " + cpp_file.name + " " + sol_file_path)
+        os.system(f"{diff_env} {cpp_file.name} {sol_file_path}")
         os.unlink(cpp_file.name)
         print("\n")
 
         checks, sol_checks = get_checks(content, sol_file_path)
 
         if len(checks) == len(sol_checks):
-            for i in range(0, len(checks)):
+            for i in range(len(checks)):
                 print(colorize(checks[i].strip(), sol_checks[i].strip(), i))
         else:
             print("warning: check count not matching. this should not happen!")
@@ -109,11 +110,11 @@ def show_test(name, content, sol_file_path, current_test, test_count):
 
 
 def get_tests(e2e_path):
-    tests = []
-    for f in os.listdir(e2e_path):
-        if f.endswith(".sol"):
-            tests.append(f.replace(".sol", ""))
-    return tests
+    return [
+        f.replace(".sol", "")
+        for f in os.listdir(e2e_path)
+        if f.endswith(".sol")
+    ]
 
 
 def process_input_file(e2e_path, input_file, interactive):
@@ -126,9 +127,10 @@ def process_input_file(e2e_path, input_file, interactive):
         count = 0
         test_content = ""
         for line in cpp_file.readlines():
-            test = re.search(r'BOOST_AUTO_TEST_CASE\((.*)\)', line, re.M | re.I)
-            if test:
-                test_name = test.group(1)
+            if test := re.search(
+                r'BOOST_AUTO_TEST_CASE\((.*)\)', line, re.M | re.I
+            ):
+                test_name = test[1]
                 inside_test = True
                 inside_extracted_test = inside_test & (test_name in tests)
                 if inside_extracted_test:
@@ -138,16 +140,20 @@ def process_input_file(e2e_path, input_file, interactive):
                 test_content = test_content + line
 
             if not inside_extracted_test:
-                if line == "\n":
-                    new_lines = new_lines + 1
-                else:
-                    new_lines = 0
+                new_lines = new_lines + 1 if line == "\n" else 0
                 if not interactive and new_lines <= 1:
                     sys.stdout.write(line)
 
             if line == "}\n":
                 if interactive and inside_extracted_test:
-                    show_test(test_name, test_content.strip(), e2e_path + "/" + test_name + ".sol", count, len(tests))
+                    show_test(
+                        test_name,
+                        test_content.strip(),
+                        f"{e2e_path}/{test_name}.sol",
+                        count,
+                        len(tests),
+                    )
+
                     test_content = ""
                 inside_test = False
         cpp_file.close()
@@ -172,9 +178,9 @@ def main(argv):
     base_path = os.path.dirname(__file__)
 
     if not input_file:
-        input_file = base_path + "/../../test/libsolidity/SolidityEndToEndTest.cpp"
+        input_file = f"{base_path}/../../test/libsolidity/SolidityEndToEndTest.cpp"
 
-    e2e_path = base_path + "/../../test/libsolidity/semanticTests/extracted"
+    e2e_path = f"{base_path}/../../test/libsolidity/semanticTests/extracted"
 
     process_input_file(e2e_path, input_file, interactive)
 

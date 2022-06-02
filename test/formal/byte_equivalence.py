@@ -12,7 +12,7 @@ rule = Rule()
 n_bits = 256
 x = BitVec('X', n_bits)
 
-for i in range(0, 32):
+for i in range(32):
     # For Byte, i = 0 corresponds to most significant bit
     # But for extract i = 0 corresponds to the least significant bit
     lsb = 31 - i

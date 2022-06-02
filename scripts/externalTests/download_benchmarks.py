@@ -114,24 +114,32 @@ def download_benchmarks(
         pr_info = github.pull_request(pull_request_id)
         branch = pr_info['head']['ref']
         expected_commit_hash = pr_info['head']['sha']
-    elif base_of_pr is not None:
+    else:
         pr_info = github.pull_request(base_of_pr)
         branch = pr_info['base']['ref']
         expected_commit_hash = pr_info['base']['sha']
 
     if not silent:
         print(
-            f"Looking for pipelines that ran on branch {branch}" +
-            (f", commit {expected_commit_hash}." if not ignore_commit_hash else " (any commit).")
+            (
+                f"Looking for pipelines that ran on branch {branch}"
+                + (
+                    " (any commit)."
+                    if ignore_commit_hash
+                    else f", commit {expected_commit_hash}."
+                )
+            )
         )
 
-    pipeline = circleci.latest_item(circleci.pipelines(
-        branch,
-        expected_commit_hash if not ignore_commit_hash else None,
-        # Skip nightly workflows. They don't have the c_ext_benchmarks job and even if they did,
-        # they would likely be running a different set of external tests.
-        excluded_trigger_types=['schedule'],
-    ))
+
+    pipeline = circleci.latest_item(
+        circleci.pipelines(
+            branch,
+            None if ignore_commit_hash else expected_commit_hash,
+            excluded_trigger_types=['schedule'],
+        )
+    )
+
     if pipeline is None:
         raise RuntimeError("No matching pipelines found.")
 

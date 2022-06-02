@@ -85,10 +85,8 @@ class BenchmarkDiffer:
     def _diff_scalars(self, before: Any, after: Any) -> Optional[Union[str, int, float, dict]]:
         assert not isinstance(before, dict) or not isinstance(after, dict)
 
-        if before is None and after is None:
-            return {}
         if before is None:
-            return self._humanize_diff('!B')
+            return {} if after is None else self._humanize_diff('!B')
         if after is None:
             return self._humanize_diff('!A')
         if not isinstance(before, (int, float)) or not isinstance(after, (int, float)):
@@ -193,7 +191,7 @@ class DiffTableSet:
     def __init__(self, diff: dict):
         self.table_headers = sorted(self._find_all_preset_names(diff))
         self.column_headers = sorted(self._find_all_attribute_names(diff))
-        self.row_headers = sorted(project for project in diff)
+        self.row_headers = sorted(iter(diff))
 
         # All dimensions must have unique values
         assert len(self.table_headers) == len(set(self.table_headers))
@@ -278,39 +276,39 @@ class DiffTableFormatter:
     def run(cls, diff_table_set: DiffTableSet, output_format: OutputFormat):
         if output_format == OutputFormat.JSON:
             return json.dumps(diff_table_set.cells, indent=4, sort_keys=True)
-        else:
-            assert output_format in {OutputFormat.CONSOLE, OutputFormat.MARKDOWN}
+        assert output_format in {OutputFormat.CONSOLE, OutputFormat.MARKDOWN}
 
-            output = ''
-            for table_header in diff_table_set.table_headers:
-                column_widths = ([
-                    diff_table_set.calculate_row_column_width(),
-                    *diff_table_set.calculate_column_widths(table_header)
-                ])
+        output = ''
+        for table_header in diff_table_set.table_headers:
+            column_widths = ([
+                diff_table_set.calculate_row_column_width(),
+                *diff_table_set.calculate_column_widths(table_header)
+            ])
 
-                if output_format == OutputFormat.MARKDOWN:
-                    output += f'\n### `{table_header}`\n'
-                else:
-                    output += f'\n{table_header.upper()}\n'
+            output += (
+                f'\n### `{table_header}`\n'
+                if output_format == OutputFormat.MARKDOWN
+                else f'\n{table_header.upper()}\n'
+            )
 
-                if output_format == OutputFormat.CONSOLE:
-                    output += cls._format_separator_row(column_widths, output_format) + '\n'
-                output += cls._format_data_row(['project', *diff_table_set.column_headers], column_widths) + '\n'
+            if output_format == OutputFormat.CONSOLE:
+                output += cls._format_separator_row(column_widths, output_format) + '\n'
+            output += cls._format_data_row(['project', *diff_table_set.column_headers], column_widths) + '\n'
+            output += cls._format_separator_row(column_widths, output_format) + '\n'
+
+            for row_header in diff_table_set.row_headers:
+                row = [
+                    diff_table_set.cells[table_header][row_header][column_header]
+                    for column_header in diff_table_set.column_headers
+                ]
+                output += cls._format_data_row([row_header, *row], column_widths) + '\n'
+
+            if output_format == OutputFormat.CONSOLE:
                 output += cls._format_separator_row(column_widths, output_format) + '\n'
 
-                for row_header in diff_table_set.row_headers:
-                    row = [
-                        diff_table_set.cells[table_header][row_header][column_header]
-                        for column_header in diff_table_set.column_headers
-                    ]
-                    output += cls._format_data_row([row_header, *row], column_widths) + '\n'
-
-                if output_format == OutputFormat.CONSOLE:
-                    output += cls._format_separator_row(column_widths, output_format) + '\n'
-
-            if output_format == OutputFormat.MARKDOWN:
-                output += f'\n{cls.LEGEND}\n'
-            return output
+        if output_format == OutputFormat.MARKDOWN:
+            output += f'\n{cls.LEGEND}\n'
+        return output
 
     @classmethod
     def _format_separator_row(cls, widths: Sequence[int], output_format: OutputFormat):

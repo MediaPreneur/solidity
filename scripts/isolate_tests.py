@@ -23,16 +23,14 @@ def extract_test_cases(path):
 
     for l in lines:
         if inside:
-            if l.strip().endswith(')' + delimiter + '";'):
+            if l.strip().endswith(f'){delimiter}' + '";'):
                 inside = False
             else:
                 tests[-1] += l + '\n'
-        else:
-            m = re.search(r'R"([^(]*)\($', l.strip())
-            if m:
-                inside = True
-                delimiter = m.group(1)
-                tests += ['']
+        elif m := re.search(r'R"([^(]*)\($', l.strip()):
+            inside = True
+            delimiter = m[1]
+            tests += ['']
 
     return tests
 
@@ -82,10 +80,10 @@ def extract_docs_cases(path, beginMarkers):
 
     for line in lines:
         if insideBlock:
-            if immediatelyAfterMarker:
-                # Skip Sphinx instructions and empty lines between them
-                if line == '' or line.lstrip().startswith(":"):
-                    continue
+            if immediatelyAfterMarker and (
+                line == '' or line.lstrip().startswith(":")
+            ):
+                continue
 
             if line == '' or line.startswith(" "):
                 tests[-1] += line + "\n"

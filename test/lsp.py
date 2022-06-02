@@ -45,11 +45,7 @@ def getCharFromStdin() -> str:
     """
     Gets a single character from stdin without line-buffering.
     """
-    if os.name == 'nt':
-        # pragma pylint: disable=import-error
-        return msvcrt.getch().decode("utf-8")
-    else:
-        return sys.stdin.read(1)
+    return msvcrt.getch().decode("utf-8") if os.name == 'nt' else sys.stdin.read(1)
 
 
 """
@@ -134,14 +130,14 @@ def prepend_comments(sequence):
     """
     result = ""
     for line in sequence.splitlines(True):
-        result = result + "// " + line
+        result = f"{result}// {line}"
     return result
 
 
 # {{{ JsonRpcProcess
 class BadHeader(Exception):
     def __init__(self, msg: str):
-        super().__init__("Bad header: " + msg)
+        super().__init__(f"Bad header: {msg}")
 
 class JsonRpcProcess:
     exe_path: str
@@ -198,10 +194,7 @@ class JsonRpcProcess:
                 if not line.isdigit():
                     raise BadHeader("size is not int")
                 message_size = int(line)
-            elif line.startswith(CONTENT_TYPE_HEADER):
-                # nothing todo with type for now.
-                pass
-            else:
+            elif not line.startswith(CONTENT_TYPE_HEADER):
                 raise BadHeader("unknown header")
         if message_size is None:
             raise BadHeader("missing size")
@@ -338,7 +331,7 @@ def extendEnd(marker, amount=1):
 class TestParserException(Exception):
     def __init__(self, incompleteResult, msg: str):
         self.result = incompleteResult
-        super().__init__("Failed to parse test specification: " + msg)
+        super().__init__(f"Failed to parse test specification: {msg}")
 
 class TestParser:
     """
@@ -402,9 +395,7 @@ class TestParser:
         Parse diagnostic expectations specified in the file.
         Returns a named tuple instance of "Diagnostics"
         """
-        diagnostics = { "tests": {}, "has_header": True }
-
-        diagnostics["start"] = self.position()
+        diagnostics = {"tests": {}, "has_header": True, "start": self.position()}
 
         while not self.at_end():
             fileDiagMatch = TEST_REGEXES.fileDiagnostics.match(self.current_line())
@@ -415,11 +406,15 @@ class TestParser:
 
             diagnostics_string = fileDiagMatch.group("diagnostics")
             if diagnostics_string is not None:
-                for diagnosticMatch in TEST_REGEXES.diagnostic.finditer(diagnostics_string):
-                    testDiagnostics.append(self.Diagnostic(
+                testDiagnostics.extend(
+                    self.Diagnostic(
                         diagnosticMatch.group("tag"),
-                        int(diagnosticMatch.group("code"))
-                    ))
+                        int(diagnosticMatch.group("code")),
+                    )
+                    for diagnosticMatch in TEST_REGEXES.diagnostic.finditer(
+                        diagnostics_string
+                    )
+                )
 
             diagnostics["tests"][fileDiagMatch.group("testname")] = testDiagnostics
 
@@ -440,7 +435,10 @@ class TestParser:
         # Parse request header
         requestResult = TEST_REGEXES.sendRequest.match(self.current_line())
         if requestResult is None:
-            raise TestParserException(ret, "Method for request not found on line " + self.current_line())
+            raise TestParserException(
+                ret, f"Method for request not found on line {self.current_line()}"
+            )
+
 
         ret["method"] = requestResult.group("method")
         ret["request"] = "{\n"
@@ -462,16 +460,14 @@ class TestParser:
                 raise TestParserException(ret, "Request body not found")
 
 
-        # Parse response header
-        if self.current_line().startswith(RESPONSE_START):
-            start_character = self.current_line()[len(RESPONSE_START)]
-            if start_character not in ("{", "["):
-                raise TestParserException(ret, "Response header malformed")
-            ret["response"] = self.current_line()[len(RESPONSE_START):] + "\n"
-            ret["responseBegin"] = self.position()
-        else:
+        if not self.current_line().startswith(RESPONSE_START):
             raise TestParserException(ret, "Response header not found")
 
+        start_character = self.current_line()[len(RESPONSE_START)]
+        if start_character not in ("{", "["):
+            raise TestParserException(ret, "Response header malformed")
+        ret["response"] = self.current_line()[len(RESPONSE_START):] + "\n"
+        ret["responseBegin"] = self.position()
         self.next_line()
 
         end_character = "}" if start_character == "{" else "]"
@@ -545,7 +541,7 @@ class FileTestRunner:
 
             # Process diagnostics first
             self.expected_diagnostics = next(self.parsed_testcases)
-            assert isinstance(self.expected_diagnostics, TestParser.Diagnostics) is True
+            assert isinstance(self.expected_diagnostics, TestParser.Diagnostics)
 
             expected_diagnostics_per_file = self.expected_diagnostics.tests
 
@@ -557,7 +553,9 @@ class FileTestRunner:
                 self.suite.open_file_and_wait_for_diagnostics(self.solc, self.test_name, self.sub_dir)
 
             for diagnostics in published_diagnostics:
-                if not diagnostics["uri"].startswith(self.suite.project_root_uri + "/"):
+                if not diagnostics["uri"].startswith(
+                    f"{self.suite.project_root_uri}/"
+                ):
                     raise Exception(
                         f"'{self.test_name}.sol' imported file outside of test directory: '{diagnostics['uri']}'"
                     )
@@ -694,7 +692,10 @@ class FileTestRunner:
         # simplify response
         for result in actualResponseJson["result"]:
             if "uri" in result:
-                result["uri"] = result["uri"].replace(self.suite.project_root_uri + "/" + self.sub_dir + "/", "")
+                result["uri"] = result["uri"].replace(
+                    f"{self.suite.project_root_uri}/{self.sub_dir}/", ""
+                )
+
         if "jsonrpc" in actualResponseJson:
             actualResponseJson.pop("jsonrpc")
 
@@ -771,7 +772,10 @@ class SolidityLSPTestSuite: # {{{
         colorama.init()
         args = create_cli_parser().parse_args()
         self.solc_path = args.solc_path
-        self.project_root_dir = os.path.realpath(args.project_root_dir) + "/test/libsolidity/lsp"
+        self.project_root_dir = (
+            f"{os.path.realpath(args.project_root_dir)}/test/libsolidity/lsp"
+        )
+
         self.project_root_uri = PurePath(self.project_root_dir).as_uri()
         self.print_assertions = args.print_assertions
         self.trace_io = args.trace_io
@@ -796,7 +800,7 @@ class SolidityLSPTestSuite: # {{{
             filtered_tests.append("generic")
 
         for method_name in filtered_tests:
-            test_fn = getattr(self, 'test_' + method_name)
+            test_fn = getattr(self, f'test_{method_name}')
             title: str = test_fn.__name__[5:]
             print(f"{SGR_TEST_BEGIN}Testing {title} ...{SGR_RESET}")
             try:
@@ -880,7 +884,7 @@ class SolidityLSPTestSuite: # {{{
         An exception is raised on expectation failures.
         """
         assert message is not None
-        if 'error' in message.keys():
+        if 'error' in message:
             code = message['error']["code"]
             text = message['error']['message']
             raise RuntimeError(f"Error {code} received. {text}")
@@ -897,7 +901,7 @@ class SolidityLSPTestSuite: # {{{
 
         num_files = solc.receive_message()["params"]["openFileCount"]
 
-        for _ in range(0, num_files):
+        for _ in range(num_files):
             message = solc.receive_message()
 
             assert message is not None # This can happen if the server aborts early.
@@ -912,7 +916,7 @@ class SolidityLSPTestSuite: # {{{
         return sorted(reports, key=lambda x: x['uri'])
 
     def normalizeUri(self, uri):
-        return uri.replace(self.project_root_uri + "/", "")[:-len(".sol")]
+        return uri.replace(f"{self.project_root_uri}/", "")[:-len(".sol")]
 
     def fetch_and_format_diagnostics(self, solc: JsonRpcProcess, test, sub_dir=None):
         expectations = ""
@@ -947,10 +951,9 @@ class SolidityLSPTestSuite: # {{{
         content,
         current_diagnostics: TestParser.Diagnostics
     ):
-        test_header = ""
-
-        if not current_diagnostics.has_header:
-            test_header = f"{TestParser.TEST_START}\n"
+        test_header = (
+            "" if current_diagnostics.has_header else f"{TestParser.TEST_START}\n"
+        )
 
         content = content[:current_diagnostics.start] + \
             test_header + \
@@ -1089,7 +1092,7 @@ class SolidityLSPTestSuite: # {{{
                 }
             }
         )
-        message = "Goto definition (" + description + ")"
+        message = f"Goto definition ({description})"
         self.expect_equal(len(response['result']), 1, message)
         self.expect_location(response['result'][0], expected_uri, expected_lineNo, expected_startEndColumns)
 
@@ -1101,11 +1104,14 @@ class SolidityLSPTestSuite: # {{{
         """
         markers = self.get_file_tags(test, sub_dir)
 
-        for tag, tag_range in markers.items():
-            if tag_range == target_range:
-                return str(tag)
-
-        return None
+        return next(
+            (
+                str(tag)
+                for tag, tag_range in markers.items()
+                if tag_range == target_range
+            ),
+            None,
+        )
 
     def replace_ranges_with_tags(self, content, sub_dir):
         """
@@ -1354,9 +1360,10 @@ class SolidityLSPTestSuite: # {{{
 
         for sub_dir in map(lambda filepath: filepath.name, sub_dirs):
             tests = map(
-                lambda filename, sd=sub_dir: sd + "/" + filename[:-len(".sol")],
-                os.listdir(f"{self.project_root_dir}/{sub_dir}")
+                lambda filename, sd=sub_dir: f"{sd}/" + filename[: -len(".sol")],
+                os.listdir(f"{self.project_root_dir}/{sub_dir}"),
             )
+
 
             tests = map(
                 lambda path, sd=sub_dir: path[len(sd)+1:],

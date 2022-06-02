@@ -101,12 +101,11 @@ def semantictest_statistics():
     """Prints the tabulated statistics that can be pasted in github."""
     def try_parse_git_diff(fname):
         try:
-            diff_output = subprocess.check_output(
-                "git diff --unified=0 origin/develop HEAD " + fname,
+            if diff_output := subprocess.check_output(
+                f"git diff --unified=0 origin/develop HEAD {fname}",
                 shell=True,
-                universal_newlines=True
-            ).splitlines()
-            if diff_output:
+                universal_newlines=True,
+            ).splitlines():
                 return collect_statistics(diff_output)
         except subprocess.CalledProcessError as e:
             print("Error in the git diff:")

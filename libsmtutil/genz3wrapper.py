@@ -33,7 +33,7 @@ arg_list_pat = re.compile("[^\(]*\([^\)]*\)[, ]*")
 def generateEntryPoint(line, args):
     m = def_args_pat.match(args)
     if not m:
-        raise Exception('Could not parse entry point definition: ' + line)
+        raise Exception(f'Could not parse entry point definition: {line}')
     name = m.group(1)
     num_args = len(arg_list_pat.findall(m.group(2)))
     arglist = ', '.join(f"_{i}" for i in range(num_args))
@@ -89,11 +89,9 @@ for header in sys.argv[1:]:
     with open(header, 'r') as f:
         for line in f:
             line = line.strip('\r\n\t ')
-            m = def_pat.match(line)
-            if m:
+            if m := def_pat.match(line):
                 generateEntryPoint(line, m.group(1).strip('\r\n\t '))
-            m = extradef_pat.match(line)
-            if m:
+            if m := extradef_pat.match(line):
                 generateEntryPoint(line, m.group(1).strip('\r\n\t '))
 
 print('}')
